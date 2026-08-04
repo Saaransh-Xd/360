@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const app = express();
+const multer = require('multer');
 const PORT = 8000;
 const authRoutes = require('./routes/auth');
 
