@@ -173,7 +173,39 @@ async function downloadClip(req, res) {
     res.download(filePath, clip.filename);
 }
 
+async function previewClip(req, res) {
+    let userID = req.params.userIdentifier;
+    let clipID = req.params.clipID;
+    if (userID && !/^[0-9]+$/.test(String(userID))) {
+        const user = await resolveUser(userID);
+        if (!user) return res.status(404).json({ message: 'User not found' });
+        userID = user.userID;
+    }
+    if (clipID && !/^[0-9a-f-]{36}$/i.test(clipID)) {
+        return res.status(400).json({ message: 'Invalid clip ID' });
+    }
+    let clip = userID ? await readClipMetadata(userID, clipID) : null;
+
+    if (!clip) {
+        clipID = req.params.clipID || req.params.identifier;
+        const entries = await fsp.readdir(clipsRoot, { withFileTypes: true }).catch(() => []);
+        for (const entry of entries.filter(item => item.isDirectory())) {
+            clip = await readClipMetadata(entry.name, clipID);
+            if (clip) { userID = entry.name; break; }
+        }
+    }
+    if (!clip) return res.status(404).json({ message: 'Clip not found' });
+    if (!(await canView(clip, getAuthUserId(req)))) return res.status(403).json({ message: 'This clip is private' });
+
+    const filePath = path.join(clipDirectory(userID), clip.filename);
+    if (!fs.existsSync(filePath)) return res.status(404).json({ message: 'Clip file not found' });
+    res.type('video/webm');
+    res.sendFile(filePath);
+}
+
 router.get('/clips/:userIdentifier/:clipID/download', downloadClip);
 router.get('/clips/:clipID/download', downloadClip);
+router.get('/clips/:userIdentifier/:clipID/preview', previewClip);
+router.get('/clips/:clipID/preview', previewClip);
 
 module.exports = router;
