@@ -4,11 +4,14 @@ const path = require('path');
 const fs = require('fs');
 const fsp = fs.promises;
 const crypto = require('crypto');
+const ffmpeg = require('fluent-ffmpeg');
 const { findUserByUsername } = require('../../utils/findUser');
 const { verifyToken } = require('../../utils/verifyToken');
 
 const router = express.Router();
 const clipsRoot = path.join(__dirname, '../../db/clips');
+const temporaryExportsRoot = path.join(__dirname, '../../db/temp/clip-exports');
+const temporaryExportTtlMs = 60 * 60 * 1000;
 
 function getAuthUserId(req) {
     const result = verifyToken(req.headers.token || req.headers.authorization?.replace(/^Bearer\s+/i, ''));
@@ -41,6 +44,57 @@ async function readClipMetadata(userId, clipId) {
     } catch (_) {
         return null;
     }
+}
+
+async function locateClip(userIdentifier, clipID) {
+    let userID = userIdentifier;
+    if (userID && !/^\d+$/.test(String(userID))) {
+        const user = await resolveUser(userID);
+        if (!user) return null;
+        userID = user.userID;
+    }
+
+    let clip = userID ? await readClipMetadata(userID, clipID) : null;
+    if (!clip) {
+        const entries = await fsp.readdir(clipsRoot, { withFileTypes: true }).catch(() => []);
+        for (const entry of entries.filter(item => item.isDirectory())) {
+            clip = await readClipMetadata(entry.name, clipID);
+            if (clip) { userID = entry.name; break; }
+        }
+    }
+    return clip ? { clip, userID } : null;
+}
+
+async function cleanTemporaryExports() {
+    await fsp.mkdir(temporaryExportsRoot, { recursive: true });
+    const entries = await fsp.readdir(temporaryExportsRoot, { withFileTypes: true });
+    const now = Date.now();
+    await Promise.all(entries.filter(entry => entry.isFile() && entry.name.endsWith('.json')).map(async entry => {
+        const metadataPath = path.join(temporaryExportsRoot, entry.name);
+        try {
+            const metadata = JSON.parse(await fsp.readFile(metadataPath, 'utf8'));
+            if (Date.parse(metadata.expiresAt) > now) return;
+            await Promise.all([
+                fsp.rm(path.join(temporaryExportsRoot, metadata.filename), { force: true }),
+                fsp.rm(metadataPath, { force: true })
+            ]);
+        } catch (_) {
+            await fsp.rm(metadataPath, { force: true });
+        }
+    }));
+}
+
+function transcodeToMp4(inputPath, outputPath) {
+    return new Promise((resolve, reject) => {
+        ffmpeg(inputPath)
+            .videoCodec('libx264')
+            .audioCodec('aac')
+            .outputOptions('-movflags +faststart')
+            .format('mp4')
+            .on('end', resolve)
+            .on('error', reject)
+            .save(outputPath);
+    });
 }
 
 function canView(clip, requesterId) {
@@ -173,6 +227,51 @@ async function downloadClip(req, res) {
     res.download(filePath, clip.filename);
 }
 
+async function exportClipAsMp4(req, res) {
+    const clipID = req.params.clipID;
+    if (!/^[0-9a-f-]{36}$/i.test(clipID)) {
+        return res.status(400).json({ message: 'Invalid clip ID' });
+    }
+
+    const located = await locateClip(req.params.userIdentifier, clipID);
+    if (!located) return res.status(404).json({ message: 'Clip not found' });
+    if (!(await canView(located.clip, getAuthUserId(req)))) {
+        return res.status(403).json({ message: 'This clip is private' });
+    }
+
+    const sourcePath = path.join(clipDirectory(located.userID), located.clip.filename);
+    if (!fs.existsSync(sourcePath)) return res.status(404).json({ message: 'Clip file not found' });
+
+    await cleanTemporaryExports();
+    const exportID = crypto.randomUUID();
+    const filename = `${exportID}.mp4`;
+    const outputPath = path.join(temporaryExportsRoot, filename);
+    const metadataPath = path.join(temporaryExportsRoot, `${exportID}.json`);
+
+    try {
+        await transcodeToMp4(sourcePath, outputPath);
+        const metadata = {
+            exportID,
+            clipID,
+            userID: located.userID,
+            filename,
+            sourceFilename: located.clip.filename,
+            createdAt: new Date().toISOString(),
+            expiresAt: new Date(Date.now() + temporaryExportTtlMs).toISOString()
+        };
+        await fsp.writeFile(metadataPath, JSON.stringify(metadata, null, 2), 'utf8');
+        res.download(outputPath, `${clipID}.mp4`, error => {
+            if (error && !res.headersSent) res.status(500).json({ message: 'MP4 export download failed' });
+        });
+    } catch (error) {
+        await Promise.all([
+            fsp.rm(outputPath, { force: true }),
+            fsp.rm(metadataPath, { force: true })
+        ]);
+        res.status(500).json({ message: 'MP4 export failed: ' + error.message });
+    }
+}
+
 async function previewClip(req, res) {
     let userID = req.params.userIdentifier;
     let clipID = req.params.clipID;
@@ -205,6 +304,8 @@ async function previewClip(req, res) {
 
 router.get('/clips/:userIdentifier/:clipID/download', downloadClip);
 router.get('/clips/:clipID/download', downloadClip);
+router.get('/clips/:userIdentifier/:clipID/export', exportClipAsMp4);
+router.get('/clips/:clipID/export', exportClipAsMp4);
 router.get('/clips/:userIdentifier/:clipID/preview', previewClip);
 router.get('/clips/:clipID/preview', previewClip);
 
