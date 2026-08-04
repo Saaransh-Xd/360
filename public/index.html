@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>360 - Test Frontend</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: system-ui, sans-serif; background: #0a0a0a; color: #e0e0e0; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+        .container { width: 100%; max-width: 500px; padding: 20px; }
+        h1 { font-size: 1.8rem; margin-bottom: 4px; color: #fff; }
+        .subtitle { color: #888; margin-bottom: 24px; font-size: 0.9rem; }
+        .tabs { display: flex; gap: 0; margin-bottom: 24px; border-bottom: 1px solid #222; overflow-x: auto; }
+        .tab { padding: 10px 14px; background: none; border: none; color: #666; cursor: pointer; font-size: 0.85rem; border-bottom: 2px solid transparent; transition: all 0.2s; border-radius: 0; white-space: nowrap; }
+        .tab.active { color: #fff; border-bottom-color: #5865F2; }
+        .tab:hover { color: #ccc; }
+        .panel { display: none; }
+        .panel.active { display: block; }
+        label { display: block; font-size: 0.75rem; color: #999; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+        input { width: 100%; padding: 10px 12px; background: #1a1a1a; border: 1px solid #333; border-radius: 6px; color: #fff; font-size: 0.95rem; margin-bottom: 14px; outline: none; transition: border-color 0.2s; }
+        input:focus { border-color: #5865F2; }
+        .otp-input { text-align: center; font-size: 1.5rem; letter-spacing: 8px; padding: 12px; }
+        button.primary { width: 100%; padding: 10px; background: #5865F2; color: #fff; border: none; border-radius: 6px; font-size: 0.95rem; cursor: pointer; transition: opacity 0.2s; }
+        button.primary:hover { opacity: 0.9; }
+        button.primary:disabled { opacity: 0.4; cursor: not-allowed; }
+        button.secondary { width: 100%; padding: 10px; background: #222; color: #ccc; border: 1px solid #333; border-radius: 6px; font-size: 0.95rem; cursor: pointer; transition: opacity 0.2s; }
+        button.secondary:hover { background: #2a2a2a; }
+        .msg { margin-top: 14px; padding: 10px 12px; border-radius: 6px; font-size: 0.85rem; }
+        .msg.success { background: #1a3a1a; border: 1px solid #2d5a2d; color: #6fcf6f; }
+        .msg.error { background: #3a1a1a; border: 1px solid #5a2d2d; color: #cf6f6f; }
+        .back { background: none; border: none; color: #666; cursor: pointer; font-size: 0.8rem; padding: 0; margin-bottom: 14px; }
+        .back:hover { color: #999; }
+        .row { display: flex; gap: 12px; }
+        .row > * { flex: 1; }
+        .result-card { background: #141414; border: 1px solid #2a2a2a; border-radius: 8px; padding: 14px; margin-top: 12px; }
+        .result-card .field { font-size: 0.8rem; color: #888; margin-bottom: 2px; }
+        .result-card .value { font-size: 0.95rem; color: #fff; margin-bottom: 10px; word-break: break-all; }
+        .result-card .value:last-child { margin-bottom: 0; }
+        .result-card .value.mono { font-family: monospace; font-size: 0.8rem; color: #aaa; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>360</h1>
+        <p class="subtitle">API Test Console</p>
+
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('register')">Register</button>
+            <button class="tab" onclick="switchTab('login')">Login</button>
+        </div>
+
+        <div id="register" class="panel active">
+            <div id="regStep1">
+                <div class="row">
+                    <div><label>Email</label><input type="email" id="regEmail" placeholder="you@example.com"></div>
+                    <div><label>Username</label><input type="text" id="regUsername" placeholder="johndoe"></div>
+                </div>
+                <div class="row">
+                    <div><label>Display Name</label><input type="text" id="regDisplayname" placeholder="John Doe"></div>
+                    <div><label>Date of Birth</label><input type="date" id="regDob"></div>
+                </div>
+                <button class="primary" id="regSendBtn" onclick="sendRegOTP()">Send OTP</button>
+                <div id="regMsg1" class="msg" style="display:none;"></div>
+            </div>
+
+            <div id="regStep2" style="display:none;">
+                <button class="back" onclick="showEl('regStep1'); hideEl('regStep2'); hideEl('regStep3');">&#8592; Back</button>
+                <label>Enter OTP</label>
+                <input type="text" id="regOtp" class="otp-input" maxlength="6" placeholder="000000">
+                <button class="primary" id="regVerifyBtn" onclick="verifyRegOTP()">Verify</button>
+                <div id="regMsg2" class="msg" style="display:none;"></div>
+            </div>
+
+            <div id="regStep3" style="display:none;">
+                <div class="msg success">
+                    <strong>Registered!</strong>
+                    <div class="result-card" style="margin-top:10px; background:#1a2a1a; border-color:#2d5a2d;">
+                        <div class="field">TOKEN</div>
+                        <div class="value mono" id="regTokenOut"></div>
+                    </div>
+                </div>
+                <button class="secondary" style="margin-top:12px;" onclick="resetReg()">Register Another</button>
+            </div>
+        </div>
+
+        <div id="login" class="panel">
+            <div id="loginStep1">
+                <label>Email</label>
+                <input type="email" id="loginEmail" placeholder="you@example.com">
+                <button class="primary" id="loginSendBtn" onclick="sendLoginOTP()">Send OTP</button>
+                <div id="loginMsg1" class="msg" style="display:none;"></div>
+            </div>
+
+            <div id="loginStep2" style="display:none;">
+                <button class="back" onclick="showEl('loginStep1'); hideEl('loginStep2'); hideEl('loginStep3');">&#8592; Back</button>
+                <label>Enter OTP</label>
+                <input type="text" id="loginOtp" class="otp-input" maxlength="6" placeholder="000000">
+                <button class="primary" id="loginVerifyBtn" onclick="verifyLoginOTP()">Verify</button>
+                <div id="loginMsg2" class="msg" style="display:none;"></div>
+            </div>
+
+            <div id="loginStep3" style="display:none;">
+                <div class="msg success">
+                    <strong>Logged in!</strong>
+                    <div class="result-card" style="margin-top:10px; background:#1a2a1a; border-color:#2d5a2d;">
+                        <div class="field">USER</div>
+                        <div class="value" id="loginUserOut"></div>
+                        <div class="field">TOKEN</div>
+                        <div class="value mono" id="loginTokenOut"></div>
+                    </div>
+                </div>
+                <button class="secondary" style="margin-top:12px;" onclick="resetLogin()">Login Again</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function switchTab(id) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById(id).classList.add('active');
+        }
+
+        function showEl(id) { document.getElementById(id).style.display = ''; }
+        function hideEl(id) { document.getElementById(id).style.display = 'none'; }
+
+        function showMsg(id, text, type) {
+            const el = document.getElementById(id);
+            el.textContent = text;
+            el.className = 'msg ' + type;
+            el.style.display = '';
+        }
+
+        function hideMsg(id) { document.getElementById(id).style.display = 'none'; }
+
+        async function sendRegOTP() {
+            const btn = document.getElementById('regSendBtn');
+            btn.disabled = true;
+            hideMsg('regMsg1');
+            try {
+                const res = await fetch('/auth/send-otp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: document.getElementById('regEmail').value,
+                        username: document.getElementById('regUsername').value,
+                        displayname: document.getElementById('regDisplayname').value,
+                        dob: document.getElementById('regDob').value
+                    })
+                });
+                const data = await res.json();
+                if (res.ok) { hideEl('regStep1'); showEl('regStep2'); }
+                else showMsg('regMsg1', data.message, 'error');
+            } catch (e) { showMsg('regMsg1', e.message, 'error'); }
+            btn.disabled = false;
+        }
+
+        async function verifyRegOTP() {
+            const btn = document.getElementById('regVerifyBtn');
+            btn.disabled = true;
+            hideMsg('regMsg2');
+            try {
+                const res = await fetch('/auth/verify-otp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: document.getElementById('regEmail').value, otp: document.getElementById('regOtp').value })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    document.getElementById('regTokenOut').textContent = data.token;
+                    hideEl('regStep2'); showEl('regStep3');
+                } else showMsg('regMsg2', data.message, 'error');
+            } catch (e) { showMsg('regMsg2', e.message, 'error'); }
+            btn.disabled = false;
+        }
+
+        function resetReg() {
+            hideEl('regStep3'); showEl('regStep1');
+            ['regEmail','regUsername','regDisplayname','regDob','regOtp'].forEach(id => document.getElementById(id).value = '');
+            hideMsg('regMsg1'); hideMsg('regMsg2');
+        }
+
+        async function sendLoginOTP() {
+            const btn = document.getElementById('loginSendBtn');
+            btn.disabled = true;
+            hideMsg('loginMsg1');
+            try {
+                const res = await fetch('/auth/login-otp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: document.getElementById('loginEmail').value })
+                });
+                const data = await res.json();
+                if (res.ok) { hideEl('loginStep1'); showEl('loginStep2'); }
+                else showMsg('loginMsg1', data.message, 'error');
+            } catch (e) { showMsg('loginMsg1', e.message, 'error'); }
+            btn.disabled = false;
+        }
+
+        async function verifyLoginOTP() {
+            const btn = document.getElementById('loginVerifyBtn');
+            btn.disabled = true;
+            hideMsg('loginMsg2');
+            try {
+                const res = await fetch('/auth/verify-login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: document.getElementById('loginEmail').value, otp: document.getElementById('loginOtp').value })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    document.getElementById('loginUserOut').textContent = data.user.displayname + ' (@' + data.user.username + ')';
+                    document.getElementById('loginTokenOut').textContent = data.token;
+                    hideEl('loginStep2'); showEl('loginStep3');
+                } else showMsg('loginMsg2', data.message, 'error');
+            } catch (e) { showMsg('loginMsg2', e.message, 'error'); }
+            btn.disabled = false;
+        }
+
+        function resetLogin() {
+            hideEl('loginStep3'); showEl('loginStep1');
+            ['loginEmail','loginOtp'].forEach(id => document.getElementById(id).value = '');
+            hideMsg('loginMsg1'); hideMsg('loginMsg2');
+        }
+    </script>
+</body>
+</html>
