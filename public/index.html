@@ -129,8 +129,8 @@
 
             <div class="result-card">
                 <strong>Upload a clip</strong>
-                <label style="margin-top:12px;">WebP file</label>
-                <input type="file" id="clipFile" accept="image/webp">
+                <label style="margin-top:12px;">WebM file</label>
+                <input type="file" id="clipFile" accept="video/webm">
                 <label class="checkbox"><input type="checkbox" id="clipPrivate"> Make this clip private</label>
                 <button class="primary" onclick="uploadClip()">Upload Clip</button>
                 <div id="clipUploadMsg" class="msg" style="display:none;"></div>
@@ -174,7 +174,7 @@
 
         async function uploadClip() {
             const file = document.getElementById('clipFile').files[0];
-            if (!file) return showMsg('clipUploadMsg', 'Choose a WebP file first', 'error');
+            if (!file) return showMsg('clipUploadMsg', 'Choose a WebM file first', 'error');
             const form = new FormData();
             form.append('clip', file);
             form.append('private', document.getElementById('clipPrivate').checked ? 'true' : 'false');
@@ -230,7 +230,7 @@
                 const blobUrl = URL.createObjectURL(await res.blob());
                 const link = document.createElement('a');
                 link.href = blobUrl;
-                link.download = filename || 'clip.webp';
+                link.download = filename || 'clip.webm';
                 link.click();
                 URL.revokeObjectURL(blobUrl);
             } catch (e) { showMsg('clipListMsg', e.message, 'error'); }

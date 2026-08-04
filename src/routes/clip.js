@@ -58,14 +58,14 @@ const storage = multer.diskStorage({
             cb(error);
         }
     },
-    filename: (req, file, cb) => cb(null, `${crypto.randomUUID()}.webp`)
+    filename: (req, file, cb) => cb(null, `${crypto.randomUUID()}.webm`)
 });
 
 const upload = multer({
     storage,
     fileFilter: (req, file, cb) => {
-        if (file.mimetype === 'image/webp') cb(null, true);
-        else cb(new Error('Only WebP format is supported'));
+        if (file.mimetype === 'video/webm') cb(null, true);
+        else cb(new Error('Only WebM format is supported'));
     },
     limits: { fileSize: 50 * 1024 * 1024 }
 });
@@ -76,7 +76,7 @@ async function uploadClip(req, res) {
     if (!req.file) return res.status(400).json({ message: 'No clip file provided' });
 
     const isPrivate = req.body.private === true || req.body.private === 'true' || req.body.isPrivate === true || req.body.isPrivate === 'true';
-    const clipID = path.basename(req.file.filename, '.webp');
+    const clipID = path.basename(req.file.filename, '.webm');
     const clip = {
         clipID,
         userID,
