@@ -8,8 +8,10 @@ command -v node >/dev/null 2>&1 && isNodeInstalled=true
 
 #installation function
 install() {
+    echo "setting up environment variables..."
+    cp .env.example .envs
     echo "Installing dependencies..."
-    npm install < null
+    npm install
     echo "Dependencies installed successfully."
     echo "Setup complete. You can now run the 360 server. with npm start"
     echo "make sure you have forwarded the port(in ur env) to your router or use cf tunnels to expose it to the internet to use it"
