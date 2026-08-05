@@ -12,7 +12,8 @@ install() {
     npm install < null
     echo "Dependencies installed successfully."
     echo "Setup complete. You can now run the 360 server. with npm start"
-    echo "make sure you have forwarded the port 8000 to your router or use cf tunnels to expose it to the internet to use it"
+    echo "make sure you have forwarded the port(in ur env) to your router or use cf tunnels to expose it to the internet to use it"
+    echo "and make sure to setup the smtp server in the env file"
 }
 
 if [ "$isNodeInstalled" = false ]; then
